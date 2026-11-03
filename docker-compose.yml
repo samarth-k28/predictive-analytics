@@ -1,0 +1,9 @@
+name: seoul-velo
+
+services:
+  app:
+    build: .
+    image: seoul-velo:latest
+    ports:
+      - "${PORT:-8000}:8000"
+    restart: unless-stopped

@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Seoul Bike Demand · Hourly forecast dashboard</title>
+  <meta name="description" content="Hourly bike rentals in Seoul, model performance, weather response, and an interactive demand simulator.">
+  <meta name="theme-color" content="#0d100f">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="/static/fonts/inter-tight-normal-400-600.woff2" as="font" type="font/woff2" crossorigin>
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("seoul-velo-theme");
+        document.documentElement.dataset.theme = saved === "light" ? "light" : "dark";
+      } catch (error) {
+        document.documentElement.dataset.theme = "dark";
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="/static/fonts/fonts.css">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <a class="brand" href="/" aria-label="Seoul Bike Demand home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>Seoul Velo</span>
+      </a>
+      <p class="topbar-meta">UCI Seoul Bike Sharing Demand · 2017–2018</p>
+      <div class="topbar-actions">
+        <a class="topbar-link" href="/report">Report</a>
+        <div class="theme-switch" role="group" aria-label="Theme">
+          <button type="button" data-theme-set="dark" class="is-active" aria-pressed="true">Dark</button>
+          <button type="button" data-theme-set="light" aria-pressed="false">Light</button>
+        </div>
+        <a class="topbar-link topbar-link--github" href="https://github.com/ab1nv/predictive-analytics" target="_blank" rel="noreferrer">GitHub <span aria-hidden="true">↗</span></a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container page">
+    <div id="error" class="error" hidden>
+      <strong>The model did not start.</strong>
+      Refresh the page, or check that the FastAPI server is running.
+    </div>
+
+    <div class="page-head">
+      <div>
+        <p class="eyebrow">Demand analytics</p>
+        <h1>Bike demand, by the hour</h1>
+        <p class="page-subtitle">Hourly rentals in Seoul, the weather that changes them, and a count model you can try.</p>
+      </div>
+      <div class="page-meta">
+        <span class="status"><i aria-hidden="true"></i> Model ready</span>
+        <span>Negative binomial · 8,465 operating hours</span>
+      </div>
+    </div>
+
+    <section class="kpis" aria-label="Summary metrics">
+      <article class="kpi">
+        <p class="stat-label">Rides analysed</p>
+        <p class="kpi-value" id="kpi-rides">—</p>
+        <p class="kpi-sub">Dec 2017 – Nov 2018</p>
+      </article>
+      <article class="kpi">
+        <p class="stat-label">Operating hours</p>
+        <p class="kpi-value" id="kpi-hours">—</p>
+        <p class="kpi-sub" id="kpi-closed">—</p>
+      </article>
+      <article class="kpi">
+        <p class="stat-label">Peak hour</p>
+        <p class="kpi-value" id="kpi-peak">—</p>
+        <p class="kpi-sub" id="kpi-peak-sub">—</p>
+      </article>
+      <article class="kpi">
+        <p class="stat-label">Holdout MAE</p>
+        <p class="kpi-value" id="kpi-mae">—</p>
+        <p class="kpi-sub" id="kpi-mae-sub">—</p>
+      </article>
+    </section>
+
+    <div class="dashboard">
+      <section class="card card--peak" aria-labelledby="peak-title">
+        <div class="card-head">
+          <div>
+            <h2 id="peak-title">Demand by hour</h2>
+            <p>Average rides per hour, all seasons.</p>
+          </div>
+          <ul class="legend" aria-label="Legend">
+            <li><i class="swatch swatch--ink" aria-hidden="true"></i>Workday</li>
+            <li><i class="swatch swatch--accent" aria-hidden="true"></i>Weekend</li>
+          </ul>
+        </div>
+        <div id="peak-chart" class="chart chart--peak" role="img" aria-label="Average bike demand by hour on workdays and weekends"></div>
+        <div class="inline-stats">
+          <div>
+            <span>Workday commute share</span>
+            <strong id="commute-share">—</strong>
+          </div>
+          <div>
+            <span>Evening peak</span>
+            <strong id="evening-peak">—</strong>
+          </div>
+          <div>
+            <span>Holiday drop</span>
+            <strong id="holiday-drop">—</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="card card--model" aria-labelledby="model-title">
+        <div class="card-head">
+          <div>
+            <h2 id="model-title">Model check</h2>
+            <p>Last 14 days held out.</p>
+          </div>
+          <span class="pill">NB2</span>
+        </div>
+
+        <div class="model-metrics">
+          <div>
+            <p class="stat-label">MAE</p>
+            <p class="metric-value" id="model-mae">—</p>
+            <p class="stat-sub">rides / hour</p>
+          </div>
+          <div>
+            <p class="stat-label">RMSE</p>
+            <p class="metric-value" id="model-rmse">—</p>
+            <p class="stat-sub">rides / hour</p>
+          </div>
+        </div>
+
+        <table class="data-table">
+          <thead>
+            <tr><th scope="col">Model</th><th scope="col">MAE</th><th scope="col">RMSE</th></tr>
+          </thead>
+          <tbody id="model-table"></tbody>
+        </table>
+
+        <div class="model-facts">
+          <div><span>AIC</span><strong id="model-aic">—</strong></div>
+          <div><span>Dispersion α</span><strong id="model-alpha">—</strong></div>
+          <div><span>Pearson χ²/df</span><strong id="model-dispersion">—</strong></div>
+        </div>
+
+        <p class="note" id="model-note">Loading model results.</p>
+      </section>
+
+      <section class="card card--sim" aria-labelledby="sim-title">
+        <div class="card-head">
+          <div>
+            <h2 id="sim-title">Try the model</h2>
+            <p>Set the conditions and get an expected hourly count.</p>
+          </div>
+          <span class="pill" id="sim-model">Negative binomial</span>
+        </div>
+
+        <div class="sim-layout">
+          <form class="sim-form" id="sim-form">
+            <div class="field">
+              <div class="field-head">
+                <label for="sim-hour">Hour</label>
+                <output for="sim-hour" id="sim-hour-out">18:00</output>
+              </div>
+              <input type="range" id="sim-hour" min="0" max="23" step="1" value="18">
+              <div class="field-scale" aria-hidden="true"><span>00</span><span>06</span><span>12</span><span>18</span><span>23</span></div>
+            </div>
+
+            <div class="field-row">
+              <div class="field">
+                <label for="sim-season">Season</label>
+                <select id="sim-season"></select>
+              </div>
+              <div class="field">
+                <label for="sim-day">Day type</label>
+                <select id="sim-day">
+                  <option value="weekday">Workday</option>
+                  <option value="weekend">Weekend</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field-row">
+              <div class="field">
+                <div class="field-head">
+                  <label for="sim-temp">Temperature</label>
+                  <output for="sim-temp" id="sim-temp-out">18°C</output>
+                </div>
+                <input type="range" id="sim-temp" min="-10" max="35" step="1" value="18">
+              </div>
+              <div class="field">
+                <div class="field-head">
+                  <label for="sim-rain">Rainfall</label>
+                  <output for="sim-rain" id="sim-rain-out">0 mm</output>
+                </div>
+                <input type="range" id="sim-rain" min="0" max="20" step="1" value="0">
+              </div>
+            </div>
+
+            <label class="checkbox">
+              <input type="checkbox" id="sim-holiday">
+              <span>Public holiday</span>
+            </label>
+
+            <p class="field-help">Humidity, wind, and visibility use the seasonal median. Solar radiation follows the hour.</p>
+          </form>
+
+          <div class="sim-output" id="sim-output" aria-live="polite">
+            <div class="sim-output-head">
+              <p class="stat-label">Expected rides / hour</p>
+              <span class="delta" id="sim-delta">—</span>
+            </div>
+            <p class="sim-value" id="sim-value">—</p>
+            <p class="sim-context" id="sim-context">—</p>
+            <p class="sim-range-text" id="sim-range">—</p>
+            <div id="sim-chart" class="chart chart--sim" role="img" aria-label="Expected demand across the selected day"></div>
+            <p class="note" id="sim-note">Typical means the same hour, dry, with seasonal median weather. Range is the 80% predictive interval.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="card card--weather" aria-labelledby="weather-title">
+        <div class="card-head">
+          <div>
+            <h2 id="weather-title">Weather response</h2>
+            <p>Observed demand and the model fit.</p>
+          </div>
+          <span class="pill" id="temp-peak">—</span>
+        </div>
+        <div id="temp-chart" class="chart chart--temp" role="img" aria-label="Observed and predicted demand by temperature"></div>
+        <p class="note" id="weather-note">Loading weather analysis.</p>
+      </section>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <span>Data: <a href="https://archive.ics.uci.edu/dataset/560/seoul+bike+sharing+demand" target="_blank" rel="noreferrer">Seoul Bike Sharing Demand</a>, UCI Machine Learning Repository · CC BY 4.0</span>
+      <span>Built with FastAPI and statsmodels</span>
+      <a href="/report">Project report</a>
+      <a href="https://github.com/ab1nv/predictive-analytics" target="_blank" rel="noreferrer">Source <span aria-hidden="true">↗</span></a>
+    </div>
+  </footer>
+
+  <div class="tooltip" id="tooltip" hidden></div>
+  <noscript><p class="noscript">This dashboard needs JavaScript. The API still runs at <code>/api/dashboard</code>.</p></noscript>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>

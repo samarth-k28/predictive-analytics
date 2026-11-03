@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Project report · Seoul Bike Demand</title>
+  <meta name="description" content="A simple project report for the Seoul bike demand forecast, with model explanations, results, and probable viva questions.">
+  <meta name="theme-color" content="#0b0e0d">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/fonts/fonts.css">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0e0d;
+      --surface: #121715;
+      --surface-2: #171d19;
+      --ink: #eef2ec;
+      --ink-2: #cbd2c9;
+      --muted: #9aa298;
+      --line: #28302a;
+      --accent: #f26b3a;
+      --accent-2: #ff946b;
+      --accent-soft: #3a2118;
+      --teal: #5eead4;
+      --sans: "Inter Tight", "Helvetica Neue", Arial, sans-serif;
+      --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+    }
+
+    *,
+    *::before,
+    *::after { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 18.5px;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    ::selection { background: var(--accent); color: #fff; }
+
+    h1, h2, h3, p, ul, ol, table, figure { margin: 0; }
+    ul, ol { padding: 0; }
+    a { color: var(--accent-2); text-decoration: none; }
+    a:hover { text-decoration: underline; text-underline-offset: 3px; }
+    code { font-family: var(--mono); font-size: 0.88em; }
+    strong { color: var(--ink); font-weight: 600; }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: rgba(11, 14, 13, 0.94);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .topbar-inner {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      width: min(1060px, calc(100% - 56px));
+      min-height: 64px;
+      margin-inline: auto;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      color: var(--ink);
+      font-size: 17px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .brand-mark {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    .crumb {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      margin-left: auto;
+    }
+
+    .topbar-actions a,
+    .print-button {
+      color: var(--ink-2);
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    .print-button {
+      appearance: none;
+      padding: 7px 11px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .print-button:hover { border-color: var(--accent); color: var(--accent-2); }
+
+    .page {
+      width: min(1060px, calc(100% - 56px));
+      margin-inline: auto;
+      padding: 48px 0 72px;
+    }
+
+    .eyebrow {
+      color: var(--accent-2);
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .report-head h1 {
+      max-width: 22ch;
+      margin-top: 14px;
+      font-size: clamp(38px, 5.4vw, 62px);
+      line-height: 1.02;
+      font-weight: 600;
+      letter-spacing: -0.04em;
+      text-wrap: balance;
+    }
+
+    .lede {
+      max-width: 68ch;
+      margin-top: 20px;
+      color: var(--ink-2);
+      font-size: 20px;
+      line-height: 1.55;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 24px;
+      list-style: none;
+    }
+
+    .chips li {
+      padding: 6px 10px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 11.5px;
+    }
+
+    .toc {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1px;
+      margin-top: 36px;
+      background: var(--line);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+      list-style: none;
+      counter-reset: toc;
+    }
+
+    .toc li { counter-increment: toc; background: var(--surface); }
+    .toc a {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      padding: 14px 16px;
+      color: var(--ink-2);
+      font-size: 14.5px;
+      text-decoration: none;
+    }
+    .toc a::before {
+      content: counter(toc, decimal-leading-zero);
+      color: var(--accent-2);
+      font-family: var(--mono);
+      font-size: 10.5px;
+    }
+    .toc a:hover { background: var(--surface-2); color: var(--ink); }
+
+    .section {
+      scroll-margin-top: 84px;
+      padding-top: 46px;
+      margin-top: 46px;
+      border-top: 1px solid var(--line);
+    }
+
+    .section h2 {
+      font-size: clamp(26px, 3.2vw, 32px);
+      line-height: 1.15;
+      font-weight: 600;
+      letter-spacing: -0.035em;
+    }
+
+    .section h3 {
+      margin-top: 28px;
+      font-size: 21px;
+      line-height: 1.3;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    .section p { margin-top: 14px; color: var(--ink-2); }
+    .section p:first-of-type { margin-top: 18px; }
+
+    .section ul,
+    .section ol {
+      margin-top: 14px;
+      padding-left: 24px;
+      color: var(--ink-2);
+    }
+
+    .section li + li { margin-top: 8px; }
+
+    .key-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 22px;
+    }
+
+    .key-card {
+      padding: 16px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 9px;
+    }
+
+    .key-card span {
+      display: block;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 10.5px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .key-card strong {
+      display: block;
+      margin-top: 7px;
+      font-size: 27px;
+      line-height: 1;
+      font-weight: 600;
+      letter-spacing: -0.04em;
+    }
+
+    .callout {
+      margin-top: 22px;
+      padding: 16px 18px;
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 8px 8px 0;
+      color: var(--ink-2);
+      font-size: 16.5px;
+    }
+
+    .callout strong { color: var(--ink); }
+
+    pre {
+      margin-top: 18px;
+      padding: 16px 18px;
+      overflow-x: auto;
+      background: #080b0a;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: #f1f4ee;
+      font-family: var(--mono);
+      font-size: 14.5px;
+      line-height: 1.65;
+    }
+
+    .table-wrap {
+      margin-top: 20px;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 15.5px;
+      white-space: nowrap;
+    }
+
+    th, td {
+      padding: 12px 14px;
+      text-align: right;
+      border-bottom: 1px solid var(--line);
+    }
+
+    th {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 10.5px;
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      background: var(--surface-2);
+    }
+
+    th:first-child, td:first-child { text-align: left; }
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr:nth-child(even) td { background: rgba(255, 255, 255, 0.015); }
+
+    .qa {
+      counter-reset: q;
+      display: grid;
+      gap: 12px;
+      margin-top: 22px;
+      padding-left: 0;
+      list-style: none;
+    }
+
+    .qa li {
+      counter-increment: q;
+      position: relative;
+      padding: 18px 20px 18px 62px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+
+    .qa li::before {
+      content: counter(q, decimal-leading-zero);
+      position: absolute;
+      top: 18px;
+      left: 18px;
+      display: grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      background: var(--accent-soft);
+      border-radius: 50%;
+      color: var(--accent-2);
+      font-family: var(--mono);
+      font-size: 10.5px;
+    }
+
+    .qa h3 {
+      margin: 0;
+      font-size: 18.5px;
+      line-height: 1.35;
+    }
+
+    .qa p {
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 16.5px;
+      line-height: 1.65;
+    }
+
+    .qa strong { color: var(--ink-2); }
+
+    .footer {
+      margin-top: 54px;
+      padding-top: 22px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .footer p + p { margin-top: 6px; }
+
+    @media (max-width: 820px) {
+      .topbar-inner, .page { width: calc(100% - 36px); }
+      .topbar-inner { min-height: 58px; }
+      .crumb { display: none; }
+      .topbar-actions { gap: 12px; }
+      .topbar-actions a { font-size: 13px; }
+      .print-button { font-size: 13px; padding: 6px 9px; }
+      .page { padding-top: 34px; }
+      .lede { font-size: 18px; }
+      .toc { grid-template-columns: 1fr 1fr; }
+      .key-grid { grid-template-columns: 1fr 1fr; }
+      .section { padding-top: 36px; margin-top: 36px; }
+      .section p, .section li { font-size: 17px; }
+      .qa li { padding: 16px 16px 16px 54px; }
+      .qa li::before { top: 16px; left: 14px; }
+      .qa h3 { font-size: 17px; }
+      .qa p { font-size: 15.5px; }
+    }
+
+    @media (max-width: 520px) {
+      body { font-size: 17px; }
+      .topbar-inner, .page { width: calc(100% - 28px); }
+      .topbar-actions a:first-child { display: none; }
+      .brand { font-size: 16px; }
+      .report-head h1 { font-size: 36px; }
+      .lede { font-size: 17px; }
+      .toc { grid-template-columns: 1fr; }
+      .key-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+      .key-card { padding: 13px; }
+      .key-card strong { font-size: 23px; }
+      .section h2 { font-size: 26px; }
+      .section h3 { font-size: 20px; }
+      .section p, .section li { font-size: 16.5px; }
+      pre { font-size: 13px; padding: 13px; }
+      table { font-size: 14px; }
+      th, td { padding: 10px 12px; }
+      .qa li { padding: 15px 15px 15px 52px; }
+      .qa h3 { font-size: 16.5px; }
+      .qa p { font-size: 15px; }
+    }
+
+    @media print {
+      :root {
+        color-scheme: light;
+        --bg: #fff;
+        --surface: #fff;
+        --surface-2: #f7f7f7;
+        --ink: #111;
+        --ink-2: #222;
+        --muted: #555;
+        --line: #ddd;
+        --accent: #9a3412;
+        --accent-2: #9a3412;
+        --accent-soft: #f5eee9;
+      }
+      body { background: #fff; color: #111; font-size: 11pt; }
+      .topbar, .print-button, .toc { display: none !important; }
+      .page { width: 100%; padding: 0; }
+      .section { break-inside: avoid-page; }
+      .qa li, .key-card, .table-wrap, pre, .callout { break-inside: avoid; }
+      pre { background: #f7f7f7; color: #111; border-color: #ddd; }
+      .qa li::before { background: #f3f3f3; color: #9a3412; }
+      a { color: #111; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>Seoul Velo</a>
+      <span class="crumb">Project report</span>
+      <div class="topbar-actions">
+        <a href="/">Back to dashboard</a>
+        <button class="print-button" type="button" onclick="window.print()">Print / save PDF</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+    <header class="report-head">
+      <p class="eyebrow">Predictive analytics · Course project</p>
+      <h1>Seoul bike demand, hour by hour</h1>
+      <p class="lede">A simple explanation of the data, the models, the results, and the choices behind the dashboard. Written so it can be read once and explained in a viva.</p>
+      <ul class="chips">
+        <li>Python 3.12</li>
+        <li>FastAPI</li>
+        <li>statsmodels</li>
+        <li>UCI Seoul Bike Sharing Demand</li>
+        <li>2026</li>
+      </ul>
+    </header>
+
+    <nav aria-label="Report contents">
+      <ol class="toc">
+        <li><a href="#overview">What the project does</a></li>
+        <li><a href="#data">Dataset and target</a></li>
+        <li><a href="#preparation">Cleaning and features</a></li>
+        <li><a href="#models">Models in plain terms</a></li>
+        <li><a href="#evaluation">How the models were tested</a></li>
+        <li><a href="#findings">What the data says</a></li>
+        <li><a href="#app">How the app works</a></li>
+        <li><a href="#run">How to run it</a></li>
+        <li><a href="#limits">Limitations</a></li>
+        <li><a href="#viva">Probable viva questions</a></li>
+        <li><a href="#numbers">Numbers to remember</a></li>
+      </ol>
+    </nav>
+
+    <section class="section" id="overview">
+      <h2>1. What the project does</h2>
+      <p>The project predicts how many bikes will be rented in Seoul in a given hour. It uses the hour, the day type, the season, and weather conditions. It also finds the busiest hours and shows whether weather or the calendar has the stronger link with demand.</p>
+      <p>The result is one dashboard and a small JSON API. The Python server trains the models when it starts, keeps them in memory, and serves the numbers and the live simulator. There is no database and no separate training job.</p>
+      <div class="key-grid">
+        <div class="key-card"><span>Operating hours</span><strong>8,465</strong></div>
+        <div class="key-card"><span>Rides analysed</span><strong>6.17M</strong></div>
+        <div class="key-card"><span>Peak hour</span><strong>18:00</strong></div>
+        <div class="key-card"><span>Holdout MAE</span><strong>146.5</strong></div>
+      </div>
+      <div class="callout"><strong>One-line answer:</strong> a Poisson model gives the count, a negative binomial model fixes the variance, Holt–Winters is the no-weather benchmark, and the calendar has the stronger independent relationship with demand.</div>
+    </section>
+
+    <section class="section" id="data">
+      <h2>2. Dataset and target</h2>
+      <p>The data comes from the UCI Machine Learning Repository. It contains one year of hourly bike rentals in Seoul, from December 2017 to November 2018. The file has 8,760 rows, one for each hour of the year.</p>
+      <p>There are 8,465 operating hours and 295 closed hours. The closed hours have zero rentals because the system was not functioning. The target is <strong>Rented Bike Count</strong>, a non-negative integer.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Column group</th><th>Fields used</th></tr></thead>
+          <tbody>
+            <tr><td>Calendar</td><td>Hour, date, weekend, holiday, season</td></tr>
+            <tr><td>Weather</td><td>Temperature, humidity, wind, visibility, solar radiation, rainfall, snowfall</td></tr>
+            <tr><td>Target</td><td>Rented Bike Count</td></tr>
+            <tr><td>Not used</td><td>Dew point, raw date string, functioning flag after filtering</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The data period is a full year, but the final month is late autumn. That matters when reading the holdout score.</p>
+    </section>
+
+    <section class="section" id="preparation">
+      <h2>3. Cleaning and features</h2>
+      <p>The CSV uses Latin-1 encoding and dates in day/month/year format. The code parses the date, joins it with the hour to make a real timestamp, and sorts the rows.</p>
+      <ul>
+        <li><strong>Closed hours:</strong> the count models drop the 295 hours where the system was off. The time-series baseline keeps a continuous clock and fills those hours with zero.</li>
+        <li><strong>Weekend:</strong> Saturday and Sunday get a flag. The model also uses an hour × weekend interaction, because workday and weekend demand have different shapes.</li>
+        <li><strong>Holiday:</strong> a binary flag from the original column.</li>
+        <li><strong>Weather transforms:</strong> solar radiation and rainfall use <code>log1p</code> because their raw values are very skewed. Temperature also gets a squared term to capture the rise and fall.</li>
+        <li><strong>Season:</strong> a categorical variable with Spring, Summer, Autumn, and Winter.</li>
+      </ul>
+      <p>The final count formula is:</p>
+      <pre>count ~ C(hour) * weekend + C(season) + holiday_flag
+        + temp + I(temp**2) + humidity + wind + visibility
+        + log_solar + log_rain + snow</pre>
+      <p>The model uses about 60 coefficients. That is small enough to train in a few seconds and still captures the main hourly and weather patterns.</p>
+    </section>
+
+    <section class="section" id="models">
+      <h2>4. Models in plain terms</h2>
+
+      <h3>Poisson regression</h3>
+      <p>Bike rentals are counts. A Poisson model is a natural starting point for count data. It predicts the log of the expected count, so the prediction can never be negative.</p>
+      <pre>log E[y] = Xβ
+Var(y) = E[y]</pre>
+      <p>Poisson assumes that the variance equals the mean. In this dataset, the variance is much larger. The Pearson χ²/df for the Poisson fit is <strong>83.3</strong>. That is severe overdispersion, so plain Poisson standard errors and intervals are not honest.</p>
+
+      <h3>Negative binomial regression</h3>
+      <p>The negative binomial model keeps a count distribution but adds a separate variance term:</p>
+      <pre>Var(y) = μ + αμ²</pre>
+      <p>Here <strong>α = 0.238</strong>. The dispersion is estimated by profile likelihood on the training data. The important detail is that the mean fit is the same as Poisson for this model. The negative binomial changes the likelihood and the uncertainty, not the point forecast.</p>
+      <p>That is why Poisson and the negative binomial have identical MAE and RMSE. AIC still improves a lot, from <strong>664,436</strong> to <strong>111,784</strong>, because the NB likelihood finally fits the spread of the data.</p>
+
+      <h3>Holt–Winters</h3>
+      <p>Holt–Winters is the time-series baseline. It learns level and an additive 24-hour seasonal pattern from the past. It never sees the weather. That makes it a fair history-only comparison, but not an operational weather-aware model.</p>
+      <pre>ŷₜ₊ₕ = ℓₜ + sₜ₊ₕ</pre>
+      <p>The brief allowed SARIMA or exponential smoothing. Holt–Winters was chosen because 24-hour seasonality is easy to express and the model is quick to fit. A SARIMA or SARIMAX extension is a sensible next step, but it is heavier and not needed to make the point.</p>
+    </section>
+
+    <section class="section" id="evaluation">
+      <h2>5. How the models were tested</h2>
+      <p>The last 14 days are held out: 17–30 November 2018, or <strong>336 hourly observations</strong>. The split keeps time order. A random split would leak future information into training and would not represent a forecast.</p>
+      <pre>MAE  = (1/n) Σ |yᵢ − ŷᵢ|
+RMSE = sqrt((1/n) Σ (yᵢ − ŷᵢ)²)</pre>
+      <p>MAE is the average absolute error. RMSE punishes large mistakes more. Both are in rides per hour, so they are easy to explain to an operator.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Model</th><th>MAE</th><th>RMSE</th><th>AIC</th></tr></thead>
+          <tbody>
+            <tr><td>Poisson GLM</td><td>146.49</td><td>210.17</td><td>664,436</td></tr>
+            <tr><td>Negative binomial</td><td>146.49</td><td>210.17</td><td>111,784</td></tr>
+            <tr><td>Holt–Winters</td><td>296.89</td><td>368.03</td><td>n/a</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The weather-aware count model cuts MAE by <strong>50.7%</strong> and RMSE by <strong>42.9%</strong> against the history-only baseline.</p>
+      <div class="callout"><strong>Why the tie?</strong> For NB2, the score equations for the mean do not depend on α. The fitted mean is the Poisson mean. The negative binomial only changes the variance and the predictive interval.</div>
+    </section>
+
+    <section class="section" id="findings">
+      <h2>6. What the data says</h2>
+
+      <h3>Peak hours</h3>
+      <p>Workday demand has two clear peaks: 08:00 and 18:00. The evening peak is larger. On workdays, <strong>39.2%</strong> of rides happen in the commute windows, 07:00–09:00 and 17:00–19:00. On weekends that share drops to <strong>27.8%</strong>. Public holidays run <strong>28.4%</strong> below an ordinary operating hour.</p>
+
+      <h3>Calendar versus weather</h3>
+      <p>Calendar alone explains <strong>70.6%</strong> of Poisson deviance. Weather alone explains <strong>57.2%</strong>. Together they explain <strong>86.6%</strong>. After hour, season, and holiday are known, weather still adds <strong>16.0 points</strong>.</p>
+      <p>So the calendar has the stronger independent relationship with demand, but weather is not decoration. Rain is especially sharp: at 1 mm, the model expects about <strong>67%</strong> fewer rides. Warm, dry hours lift demand, but the hottest afternoons start to flatten and drop.</p>
+      <div class="callout">These are associations in observational data. The model does not prove that rain causes fewer rides, even though that is the most plausible explanation.</div>
+    </section>
+
+    <section class="section" id="app">
+      <h2>7. How the app works</h2>
+      <p>FastAPI starts, loads the CSV, and fits the models in memory. Startup takes about two seconds. The frontend is plain HTML, CSS, and JavaScript. The charts are generated as SVG in the browser, so there is no charting framework and no build step.</p>
+      <p>The dashboard uses <code>GET /api/dashboard</code> for the summary, peak profile, model table, weather curve, and simulator defaults.</p>
+      <p>The simulator uses <code>POST /api/predict</code>. It sends the selected hour, season, day type, temperature, humidity, and rainfall. The server returns the expected count, an 80% predictive interval, and a full-day curve.</p>
+      <pre>POST /api/predict
+{
+  "hour": 18,
+  "season": "Autumn",
+  "weekend": false,
+  "holiday": false,
+  "temperature": 15,
+  "humidity": 85,
+  "rainfall": 8
+}</pre>
+      <p>The page defaults to dark mode. A theme switch stores the choice in the browser. The layout is responsive, and the report you are reading is served at <code>/report</code>.</p>
+    </section>
+
+    <section class="section" id="run">
+      <h2>8. How to run it</h2>
+      <p>You need <code>make</code> and <code>curl</code>. On macOS, install the Xcode command line tools. On Arch Linux, install <code>make</code> and <code>curl</code> with <code>pacman</code>.</p>
+      <pre>make install
+make run
+make test
+make docker</pre>
+      <p><code>make install</code> installs <code>uv</code> if needed, creates a Python 3.12 environment, installs the packages, and checks the dataset. <code>make run</code> serves the dashboard at <code>http://localhost:8000</code>. The report is at <code>http://localhost:8000/report</code>.</p>
+      <p>The test suite covers the data shape, the time split, overdispersion, model scores, the report route, API validation, and the prediction endpoint.</p>
+    </section>
+
+    <section class="section" id="limits">
+      <h2>9. Limitations</h2>
+      <ul>
+        <li>The data is observational, so weather coefficients are associations, not causal estimates.</li>
+        <li>The holdout is late autumn. Summer extremes are in training, not in the holdout window.</li>
+        <li>Holt–Winters has no weather inputs. The comparison is a benchmark, not an operational forecast.</li>
+        <li>The 80% range covers count uncertainty from the fitted negative binomial. It does not include parameter uncertainty.</li>
+        <li>The simulator uses seasonal median wind, visibility, and solar radiation. It is a what-if tool, not a live dispatch system.</li>
+        <li>A real operator would need a weather forecast, monitoring for drift, and a refresh policy for the model.</li>
+      </ul>
+    </section>
+
+    <section class="section" id="viva">
+      <h2>10. Probable viva questions</h2>
+      <ol class="qa">
+        <li>
+          <h3>Why did you choose Poisson regression for bike rentals?</h3>
+          <p>Rentals are non-negative integer counts. Poisson is the standard starting model for counts. It uses a log link, so predictions stay positive, and it models the mean directly instead of fitting a normal error to a skewed target.</p>
+        </li>
+        <li>
+          <h3>Why not use ordinary linear regression?</h3>
+          <p>Linear regression can predict negative counts, assumes constant variance, and treats integer counts as continuous. The data is skewed and overdispersed, so those assumptions fail.</p>
+        </li>
+        <li>
+          <h3>What does the log link do?</h3>
+          <p>It maps the linear predictor to a positive mean: <code>μ = exp(Xβ)</code>. A one-unit increase in a feature multiplies the expected count instead of adding a fixed amount. That is a natural fit for demand.</p>
+        </li>
+        <li>
+          <h3>What is overdispersion?</h3>
+          <p>Overdispersion means the observed variance is larger than the mean. Poisson expects them to be equal. Here the Pearson χ²/df is 83.3, so the data is far more variable than Poisson allows.</p>
+        </li>
+        <li>
+          <h3>How did you detect overdispersion?</h3>
+          <p>I compared the Pearson χ² statistic with its residual degrees of freedom. The ratio is 83.3. The marginal variance is also hundreds of times the mean. Both point to severe overdispersion.</p>
+        </li>
+        <li>
+          <h3>Why use a negative binomial model?</h3>
+          <p>It adds a dispersion term: <code>Var(y) = μ + αμ²</code>. It keeps the count nature of the target, gives a realistic likelihood, and produces honest predictive intervals. It is the production model.</p>
+        </li>
+        <li>
+          <h3>How is α estimated?</h3>
+          <p>By profile likelihood. The Poisson fit supplies the mean for each training row. Then a one-dimensional search finds the α that maximises the negative binomial log-likelihood. The estimated value is 0.238.</p>
+        </li>
+        <li>
+          <h3>Why do Poisson and negative binomial have the same MAE?</h3>
+          <p>For NB2, the score equations for the mean do not depend on α. The fitted mean is therefore the Poisson mean. The point forecasts are identical; the negative binomial changes the likelihood, AIC, and interval.</p>
+        </li>
+        <li>
+          <h3>What is AIC, and why is it lower for the negative binomial?</h3>
+          <p>AIC balances model fit with the number of parameters. The negative binomial fits the spread of the data much better while adding only one parameter, α. Its AIC falls from 664,436 to 111,784.</p>
+        </li>
+        <li>
+          <h3>Why include Holt–Winters?</h3>
+          <p>It is a history-only time-series benchmark. It learns the 24-hour seasonal shape but never sees the weather. Comparing it with the count model shows how much the weather and calendar features add.</p>
+        </li>
+        <li>
+          <h3>Why not SARIMA?</h3>
+          <p>The brief allowed SARIMA or exponential smoothing. Holt–Winters is simpler, fast, and enough for a 24-hour seasonal baseline. A SARIMAX model with weather inputs would be a good extension, but it is heavier and not required for this comparison.</p>
+        </li>
+        <li>
+          <h3>How did you split train and test?</h3>
+          <p>The last 14 days are held out, 17–30 November 2018. That gives 336 hourly test observations. The split keeps time order, so the model is tested on a future block.</p>
+        </li>
+        <li>
+          <h3>Why not use a random train/test split?</h3>
+          <p>A random split would put future hours into training and past hours into testing. That is leakage for a forecasting problem. It would make the score look better than a real deployment.</p>
+        </li>
+        <li>
+          <h3>What is the difference between MAE and RMSE?</h3>
+          <p>MAE is the average absolute error and is easy to read in rides per hour. RMSE squares the errors before averaging, so a few large misses hurt it more. Reporting both gives a fuller picture.</p>
+        </li>
+        <li>
+          <h3>What is deviance explained?</h3>
+          <p>It is a pseudo-R² for a generalised linear model. It compares the fitted model deviance with the null model deviance: <code>1 − D_model / D_null</code>. Calendar alone explains 70.6%, weather alone 57.2%, and both 86.6%.</p>
+        </li>
+        <li>
+          <h3>Which matters more, weather or the calendar?</h3>
+          <p>The calendar has the stronger independent relationship. It explains 70.6% of deviance alone, and weather adds 16 points after calendar is known. Weather is still important, especially rain.</p>
+        </li>
+        <li>
+          <h3>Why are 08:00 and 18:00 the peaks?</h3>
+          <p>They match the commute. Workday demand has a morning rush into work and a larger evening rush home. Weekend demand is flatter because there is no commute pattern.</p>
+        </li>
+        <li>
+          <h3>Can you say weather causes the change in demand?</h3>
+          <p>No. The data is observational. The model shows associations after controlling for hour, season, and holiday. A causal claim would need a different design or an experiment.</p>
+        </li>
+        <li>
+          <h3>What does the 80% predictive interval mean?</h3>
+          <p>It is the 10th to 90th percentile of the fitted negative binomial count distribution for that hour. It reflects count variability, not uncertainty in the fitted coefficients.</p>
+        </li>
+        <li>
+          <h3>How does the simulator handle inputs you do not show?</h3>
+          <p>Humidity, wind, visibility, and solar radiation come from the seasonal median for the chosen season. Solar radiation also follows the hour of the day. The interval and curve use those fixed values.</p>
+        </li>
+        <li>
+          <h3>What are the main limitations?</h3>
+          <p>The holdout is late autumn, the study is observational, Holt–Winters has no weather, and the interval excludes parameter uncertainty. The simulator is a what-if tool, not a live operational system.</p>
+        </li>
+        <li>
+          <h3>How would you improve it?</h3>
+          <p>Use rolling-origin validation across seasons, add a SARIMAX baseline with weather, connect a real weather forecast, monitor drift, and add quantile or probabilistic calibration for operations.</p>
+        </li>
+        <li>
+          <h3>Which files contain the main logic?</h3>
+          <p><code>app/data.py</code> loads and prepares the data. <code>app/model.py</code> fits the models, estimates α, and builds the dashboard payload. <code>app/main.py</code> serves the API, the dashboard, and the report. The frontend is in <code>app/static/</code>.</p>
+        </li>
+        <li>
+          <h3>What is the main finding in one sentence?</h3>
+          <p>The calendar sets the daily and seasonal rhythm, weather adjusts the level, and a weather-aware count model roughly halves the error of a history-only forecast.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section class="section" id="numbers">
+      <h2>11. Numbers to remember</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Item</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td>Raw hourly rows</td><td>8,760</td></tr>
+            <tr><td>Operating hours</td><td>8,465</td></tr>
+            <tr><td>Closed hours</td><td>295</td></tr>
+            <tr><td>Holdout hours</td><td>336</td></tr>
+            <tr><td>Poisson MAE / RMSE</td><td>146.49 / 210.17</td></tr>
+            <tr><td>Negative binomial MAE / RMSE</td><td>146.49 / 210.17</td></tr>
+            <tr><td>Holt–Winters MAE / RMSE</td><td>296.89 / 368.03</td></tr>
+            <tr><td>Poisson AIC</td><td>664,436</td></tr>
+            <tr><td>Negative binomial AIC</td><td>111,784</td></tr>
+            <tr><td>Dispersion α</td><td>0.238</td></tr>
+            <tr><td>Pearson χ²/df</td><td>83.3</td></tr>
+            <tr><td>Calendar / weather / both deviance</td><td>70.6% / 57.2% / 86.6%</td></tr>
+            <tr><td>Workday commute share</td><td>39.2%</td></tr>
+            <tr><td>Workday evening peak</td><td>18:00, 1,724 rides/hour</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p>Data: Seoul Bike Sharing Demand (2020), UCI Machine Learning Repository. DOI 10.24432/C5F62R. Licensed under CC BY 4.0.</p>
+      <p>Code: MIT. Built with FastAPI, pandas, statsmodels, and plain HTML, CSS, and JavaScript. <a href="/">Back to the dashboard</a>.</p>
+    </footer>
+  </main>
+</body>
+</html>
